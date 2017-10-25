@@ -52,6 +52,18 @@ ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-inspect   /usr/local/bin/bowtie2-inspe
 ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-inspect-l /usr/local/bin/bowtie2-inspect-l-2.2.8
 ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-inspect-s /usr/local/bin/bowtie2-inspect-s-2.2.8
 
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2           /usr/local/bin/bowtie2
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-align-l   /usr/local/bin/bowtie2-align-l
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-align-s   /usr/local/bin/bowtie2-align-s
+
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-build     /usr/local/bin/bowtie2-build
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-build-l   /usr/local/bin/bowtie2-build-l
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-build-s   /usr/local/bin/bowtie2-build-s
+
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-inspect   /usr/local/bin/bowtie2-inspect
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-inspect-l /usr/local/bin/bowtie2-inspect-l
+ln -s /usr/local/bowtie-2.2.8/bin/bowtie2-inspect-s /usr/local/bin/bowtie2-inspect-s
+
 
 %postun
 rm -f /usr/local/bin/bowtie2-2.2.8

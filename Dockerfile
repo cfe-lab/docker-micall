@@ -16,10 +16,8 @@ RUN yum install -y python34-pip python34-devel
 RUN pip3 install --upgrade pip
 
 #We also need some python modules for the micall pipeline
-RUN pip3 install testfixtures
-RUN pip3 install requests
-RUN pip3 install python-Levenshtein
-RUN pip3 install matplotlib
+RUN pip3 install python-Levenshtein matplotlib cutadapt==1.11 && \
+    ln -s /usr/bin/cutadapt /usr/bin/cutadapt-1.11
 #NOTE: we need to make the gotoh python module -- for this, we get the whole Micall source
 #from git, but only build the gotoh python module
 WORKDIR /usr/local/share
