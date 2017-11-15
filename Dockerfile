@@ -1,64 +1,173 @@
-# dockerfile to run the MiCall pipeline within Kive
-
-FROM centos:7
+FROM python:2.7.14-alpine3.4
 
 MAINTAINER wscott@cfenet.ubc.ca
 
-#NOTE: need epel-relase for pip...
-RUN yum install -y epel-release
-RUN yum -y update && yum -y upgrade
+# This section installs Python 3 on top of Python 2 >>>
+ENV GPG_KEY 97FC712E4C024BBEA48A61ED3A5CA953F73C700D
+ENV PYTHON_VERSION 3.4.7
 
-RUN yum install -y rpm-build gcc-c++ libcurl-devel wget git make zlib-devel ncurses-devel openssl-devel
-# 2017-10-24: seem to need python34 explicitly (i.e. rather than python3) under centos 7.3 for
-# pip install to work properly. This appears to be a bug in the packages, and so this might
-# change in newer versions of centos7.
-RUN yum install -y python34-pip python34-devel
-RUN pip3 install --upgrade pip
+RUN set -ex \
+    && apk add --no-cache --virtual .fetch-deps \
+        gnupg \
+        openssl \
+        wget \
+        tar \
+        xz \
+    #
+    && wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
+    && wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
+    && export GNUPGHOME="$(mktemp -d)" \
+    && (gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY" \
+        || gpg --keyserver pgp.mit.edu --recv-keys "$GPG_KEY" \
+        || gpg --keyserver keyserver.pgp.com --recv-keys "$GPG_KEY") \
+    && gpg --batch --verify python.tar.xz.asc python.tar.xz \
+    && rm -rf "$GNUPGHOME" python.tar.xz.asc \
+    && mkdir -p /usr/src/python \
+    && tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz \
+    && rm python.tar.xz \
+    #
+    && apk add --no-cache --virtual .build-deps  \
+        bzip2-dev \
+        coreutils \
+        dpkg-dev dpkg \
+        expat-dev \
+        gcc \
+        gdbm-dev \
+        libc-dev \
+        libffi-dev \
+        linux-headers \
+        make \
+        ncurses-dev \
+        openssl \
+        openssl-dev \
+        pax-utils \
+        readline-dev \
+        sqlite-dev \
+        tcl-dev \
+        tk \
+        tk-dev \
+        xz-dev \
+        zlib-dev \
+    # add build deps before removing fetch deps in case there's overlap
+    && apk del .fetch-deps \
+    #
+    && cd /usr/src/python \
+    && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
+    && ./configure \
+        --build="$gnuArch" \
+        --enable-loadable-sqlite-extensions \
+        --enable-shared \
+        --with-system-expat \
+        --with-system-ffi \
+        --without-ensurepip \
+    && make -j "$(nproc)" \
+    && make install \
+    #
+    && runDeps="$( \
+        scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
+            | tr ',' '\n' \
+            | sort -u \
+            | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+    )" \
+    && apk add --virtual .python-rundeps $runDeps \
+    && apk del .build-deps \
+    #
+    && find /usr/local -depth \
+        \( \
+            \( -type d -a \( -name test -o -name tests \) \) \
+            -o \
+            \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
+        \) -exec rm -rf '{}' + \
+    && rm -rf /usr/src/python
 
-#We also need some python modules for the micall pipeline
-RUN pip3 install python-Levenshtein matplotlib cutadapt==1.11 && \
-    ln -s /usr/bin/cutadapt /usr/bin/cutadapt-1.11
-#NOTE: we need to make the gotoh python module -- for this, we get the whole Micall source
-#from git, but only build the gotoh python module
-WORKDIR /usr/local/share
-#NOTE: If we are installing under python2, then we need to pull version 7.6.
-#The newer versions uses python3
-# RUN git clone --branch v7.6 https://github.com/cfe-lab/MiCall.git
-RUN git clone https://github.com/cfe-lab/MiCall.git
-WORKDIR MiCall/micall/alignment
-RUN python3 setup.py install
+# if this is called "PIP_VERSION", pip explodes with "ValueError: invalid truth value '<VERSION>'"
+ENV PYTHON_PIP_VERSION 9.0.1
 
-# ----- bowtie2, bcftools and samtools: install these from source using rpmbuild
-WORKDIR /root
+RUN set -ex; \
+    #
+    apk add --no-cache --virtual .fetch-deps openssl; \
+    #
+    wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py'; \
+    #
+    apk del .fetch-deps; \
+    #
+    python get-pip.py \
+        --disable-pip-version-check \
+        --no-cache-dir \
+        "pip==$PYTHON_PIP_VERSION" \
+    ; \
+    pip --version; \
+    #
+    find /usr/local -depth \
+        \( \
+            \( -type d -a \( -name test -o -name tests \) \) \
+            -o \
+            \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
+        \) -exec rm -rf '{}' +; \
+    rm -f get-pip.py
 
-COPY rpmbuild rpmbuild
+# <<< End of Python 3
 
-# bowtie2 
-#NOTE: these are required if bowtie is statically linked
-RUN yum install -y glibc-static libstdc++-static.x86_64 
-RUN wget  https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.2.8/bowtie2-2.2.8-source.zip 
-RUN mv bowtie2-2.2.8-source.zip  rpmbuild/SOURCES/.
-RUN rpmbuild -bb rpmbuild/SPECS/bowtie-2.2.8.spec
+ENV BOWTIE2_VERSION 2.2.8
 
-# bcftools
-RUN wget https://github.com/samtools/bcftools/releases/download/1.3.1/bcftools-1.3.1.tar.bz2
-RUN mv bcftools-1.3.1.tar.bz2 rpmbuild/SOURCES/.
-RUN rpmbuild -bb rpmbuild/SPECS/bcftools-1.3.1.spec
+WORKDIR /root/build
 
-#samtools
-RUN wget https://github.com/samtools/samtools/releases/download/1.3.1/samtools-1.3.1.tar.bz2
-RUN mv samtools-1.3.1.tar.bz2 rpmbuild/SOURCES/.
-RUN rpmbuild -bb rpmbuild/SPECS/samtools-1.3.1.spec
+# Tried binary distribution, but it didn't work:
+# https://serverfault.com/q/883625/1143
+RUN apk add --no-cache --virtual .fetch-deps \
+        openssl \
+        wget \
+        ca-certificates \
+    && wget -nv https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/$BOWTIE2_VERSION/bowtie2-$BOWTIE2_VERSION-source.zip \
+    && apk add --no-cache --virtual .build-deps \
+        g++ \
+        make \
+    && apk del .fetch-deps \
+    && unzip bowtie2-$BOWTIE2_VERSION-source.zip \
+    && cd bowtie2-$BOWTIE2_VERSION \
+    && make \
+    && mv bowtie2* /usr/local/bin \
+    && (for cmd in /usr/local/bin/bowtie2*; \
+        do ln -s $cmd $cmd-$BOWTIE2_VERSION ; \
+        done \
+       ) \
+    && apk add --no-cache --virtual .bowtie2-rundeps \
+        perl \
+        libstdc++ \
+    && apk del .build-deps \
+    && rm -r /root/build
 
-RUN rpm -Uvh rpmbuild/RPMS/*/*.rpm
-RUN yum clean all && rm -rf /var/cache/yum
+ENV SAMTOOLS_VERSION 1.3.1
+WORKDIR /root/build
 
-#All executables can be found under /usr/local/bin . Install a bash profile
-# file so that this path is included in all shells
-COPY kive-profile.sh  /etc/profile.d/
-RUN chmod g-w /etc/profile.d/kive-profile.sh
+RUN apk add --no-cache --virtual .samtools-rundeps \
+        ncurses==6.0_p20170701-r0 \
+    && apk add --no-cache --virtual .fetch-deps \
+        wget==1.18-r1 \
+        ca-certificates==20161130-r0 \
+    && wget -nv https://github.com/samtools/bcftools/releases/download/$SAMTOOLS_VERSION/bcftools-$SAMTOOLS_VERSION.tar.bz2 \
+    && wget -nv https://github.com/samtools/samtools/releases/download/$SAMTOOLS_VERSION/samtools-$SAMTOOLS_VERSION.tar.bz2 \
+    && apk add --no-cache --virtual .build-deps \
+        make==4.1-r1 \
+        gcc==5.3.0-r0 \
+        libc-dev==0.7-r0 \
+        zlib-dev==1.2.11-r0 \
+        ncurses-dev==6.0_p20170701-r0 \
+    && apk del .fetch-deps \
+    && tar xjf bcftools-$SAMTOOLS_VERSION.tar.bz2 \
+    && tar xjf samtools-$SAMTOOLS_VERSION.tar.bz2 \
+    && cd bcftools-$SAMTOOLS_VERSION \
+    && make \
+    && make install \
+    && cd ../samtools-$SAMTOOLS_VERSION \
+    && make \
+    && make install \
+    && apk del .build-deps \
+    && rm -r /root/build
 
-#install a minimal test script that prints out the versions of the tools installed.
+WORKDIR /
+
+# Install a minimal script to print out version numbers.
 COPY hello-world.sh /root/hello-world.sh
 
-CMD /root/hello-world.sh
+CMD ["/root/hello-world.sh"]

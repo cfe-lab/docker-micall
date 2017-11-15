@@ -1,2 +1,2 @@
-# docker-micall
-Docker file for building MiCall execution environment to run under Kive
+# kive-default-docker
+Docker file for building default execution environment to run Kive pipelines
