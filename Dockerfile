@@ -107,9 +107,7 @@ WORKDIR /root/build
 # Tried binary distribution, but decided it was safer to build from source:
 # https://serverfault.com/q/883625/1143
 RUN apk add --no-cache --virtual .fetch-deps \
-        openssl \
         wget \
-        ca-certificates \
     && wget -nv https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/$BOWTIE2_VERSION/bowtie2-$BOWTIE2_VERSION-source.zip \
     && apk add --no-cache --virtual .build-deps \
         g++ \
@@ -132,12 +130,10 @@ RUN apk add --no-cache --virtual .fetch-deps \
 ENV SAMTOOLS_VERSION 1.3.1
 WORKDIR /root/build
 
-# TODO: remove pinned version of ca-certificates
 RUN apk add --no-cache --virtual .samtools-rundeps \
         ncurses \
     && apk add --no-cache --virtual .fetch-deps \
         wget \
-        ca-certificates==20161130-r0 \
     && wget -nv https://github.com/samtools/bcftools/releases/download/$SAMTOOLS_VERSION/bcftools-$SAMTOOLS_VERSION.tar.bz2 \
     && wget -nv https://github.com/samtools/samtools/releases/download/$SAMTOOLS_VERSION/samtools-$SAMTOOLS_VERSION.tar.bz2 \
     && apk add --no-cache --virtual .build-deps \
@@ -168,13 +164,13 @@ RUN apk add --no-cache --virtual .build-deps \
         matplotlib==2.0.2 \
         numpy==1.13.0 \
         python-Levenshtein==0.12.0 \
+    && ln -s /usr/local/bin/cutadapt /usr/local/bin/cutadapt-1.11 \
     && pip2 install \
         matplotlib==2.0.2 \
         numpy==1.13.0 \
         python-Levenshtein==0.12.0 \
-    && apk del .build-deps
-# TODO: remove pip cache
-#    && rm -r /root/.cache
+    && apk del .build-deps \
+    && rm -r /root/.cache
 
 WORKDIR /root/build
 
