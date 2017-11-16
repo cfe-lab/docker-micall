@@ -83,6 +83,7 @@ RUN set -ex \
 # if this is called "PIP_VERSION", pip explodes with "ValueError: invalid truth value '<VERSION>'"
 ENV PYTHON_PIP_VERSION 9.0.1
 
+# TODO: change this python to python3, and copy /usr/local/bin/pip2 over /usr/local/bin/pip
 RUN set -ex; \
     #
     apk add --no-cache --virtual .fetch-deps openssl; \
@@ -166,6 +167,49 @@ RUN apk add --no-cache --virtual .samtools-rundeps \
     && rm -r /root/build
 
 WORKDIR /
+
+# TODO: Remove this RUN command, and switch the python to python3 on previous TODO.
+RUN set -ex; \
+    #
+    apk add --no-cache --virtual .fetch-deps openssl; \
+    #
+    wget -O get-pip.py 'https://bootstrap.pypa.io/get-pip.py'; \
+    #
+    apk del .fetch-deps; \
+    #
+    python3 get-pip.py \
+        --disable-pip-version-check \
+        --no-cache-dir \
+        "pip==$PYTHON_PIP_VERSION" \
+    ; \
+    pip --version; \
+    #
+    find /usr/local -depth \
+        \( \
+            \( -type d -a \( -name test -o -name tests \) \) \
+            -o \
+            \( -type f -a \( -name '*.pyc' -o -name '*.pyo' \) \) \
+        \) -exec rm -rf '{}' +; \
+    rm -f get-pip.py
+
+RUN apk add --no-cache --virtual .build-deps \
+        build-base==0.4-r1 \
+        freetype-dev==2.6.3-r1 \
+    && pip3 install \
+        cutadapt==1.11 \
+        matplotlib==2.0.2 \
+        numpy==1.13.0 \
+        python-Levenshtein==0.12.0 \
+    && pip2 install \
+        matplotlib==2.0.2 \
+        numpy==1.13.0 \
+        python-Levenshtein==0.12.0 \
+    && apk del .build-deps
+
+# Configure pip to avoid a warning.
+COPY pip.conf /root/.config/pip/
+# Set the default pip back to pip2
+RUN cp /usr/local/bin/pip2 /usr/local/bin/pip
 
 # Install a minimal script to print out version numbers.
 COPY hello-world.sh /root/hello-world.sh

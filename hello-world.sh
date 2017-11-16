@@ -8,11 +8,8 @@ python -V
 printf "Python 3 version:\n"
 python3 -V
 
-printf "\nsamtools version:\n"
+printf "\nOther tools:\n"
 samtools --version
-
-printf "\nbcftools version:\n"
 bcftools --version
-
-printf "\nbowtie2 version\n"
 bowtie2 --version
+cutadapt --version
