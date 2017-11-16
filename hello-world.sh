@@ -13,3 +13,9 @@ samtools --version
 bcftools --version
 bowtie2 --version
 cutadapt --version
+
+printf "\npip2:\n"
+pip2 list
+
+printf "\npip3:\n"
+pip3 list

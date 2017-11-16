@@ -6,6 +6,7 @@ MAINTAINER wscott@cfenet.ubc.ca
 ENV GPG_KEY 97FC712E4C024BBEA48A61ED3A5CA953F73C700D
 ENV PYTHON_VERSION 3.4.7
 
+# add build deps before removing fetch deps in case there's overlap
 RUN set -ex \
     && apk add --no-cache --virtual .fetch-deps \
         gnupg \
@@ -13,8 +14,8 @@ RUN set -ex \
         wget \
         tar \
         xz \
-    && wget -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
-    && wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
+    && wget -nv -O python.tar.xz "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz" \
+    && wget -nv -O python.tar.xz.asc "https://www.python.org/ftp/python/${PYTHON_VERSION%%[a-z]*}/Python-$PYTHON_VERSION.tar.xz.asc" \
     && export GNUPGHOME="$(mktemp -d)" \
     && (gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY" \
         || gpg --keyserver pgp.mit.edu --recv-keys "$GPG_KEY" \
@@ -46,7 +47,6 @@ RUN set -ex \
         tk-dev \
         xz-dev \
         zlib-dev \
-    # add build deps before removing fetch deps in case there's overlap
     && apk del .fetch-deps \
     && cd /usr/src/python \
     && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
@@ -132,6 +132,7 @@ RUN apk add --no-cache --virtual .fetch-deps \
 ENV SAMTOOLS_VERSION 1.3.1
 WORKDIR /root/build
 
+# TODO: remove pinned version of ca-certificates
 RUN apk add --no-cache --virtual .samtools-rundeps \
         ncurses \
     && apk add --no-cache --virtual .fetch-deps \
@@ -172,6 +173,28 @@ RUN apk add --no-cache --virtual .build-deps \
         numpy==1.13.0 \
         python-Levenshtein==0.12.0 \
     && apk del .build-deps
+# TODO: remove pip cache
+#    && rm -r /root/.cache
+
+WORKDIR /root/build
+
+RUN apk add --no-cache --virtual .fetch-deps \
+        wget \
+    && wget -nv https://github.com/cfe-lab/MiCall/archive/v7.6.tar.gz \
+    && wget -nv https://github.com/cfe-lab/MiCall/archive/v7.7.0.tar.gz \
+    && apk add --no-cache --virtual .build-deps \
+        g++ \
+    && apk del .fetch-deps \
+    && tar xzf v7.6.tar.gz \
+    && tar xzf v7.7.0.tar.gz \
+    && cd MiCall-7.6/micall/alignment \
+    && python2 setup.py install \
+    && cd ../../../MiCall-7.7.0/micall/alignment \
+    && python3 setup.py install \
+    && apk del .build-deps \
+    && rm -r /root/build
+
+WORKDIR /
 
 # Configure pip to avoid a warning.
 COPY pip.conf /root/.config/pip/
