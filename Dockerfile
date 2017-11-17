@@ -1,4 +1,4 @@
-FROM python:2.7.14-alpine3.4
+FROM python:2.7.14-alpine3.6
 
 MAINTAINER wscott@cfenet.ubc.ca
 
@@ -99,6 +99,8 @@ RUN set -ex; \
     # Sets the default pip back to pip2.
 
 # <<< End of Python 3
+
+RUN apk add --no-cache R
 
 ENV BOWTIE2_VERSION 2.2.8
 
@@ -204,21 +206,39 @@ RUN apk add --no-cache --virtual .build-deps \
 
 WORKDIR /root/build
 
-RUN apk add --no-cache --virtual .fetch-deps \
+RUN apk add --no-cache --virtual .hyphy-rundeps \
+        curl \
+        libgomp \
+    && apk add --no-cache --virtual .fetch-deps \
         wget \
+    && wget -nv https://github.com/veg/hyphy/archive/2.2.5.tar.gz \
     && wget -nv https://github.com/cfe-lab/MiCall/archive/v7.6.tar.gz \
     && wget -nv https://github.com/cfe-lab/MiCall/archive/v7.7.0.tar.gz \
     && apk add --no-cache --virtual .build-deps \
         g++ \
+        curl-dev \
+        openssl-dev \
     && apk del .fetch-deps \
+    && tar xzf 2.2.5.tar.gz \
     && tar xzf v7.6.tar.gz \
     && tar xzf v7.7.0.tar.gz \
-    && cd MiCall-7.6/micall/alignment \
+    && cd hyphy-2.2.5/src/lib \
+    && python2 setup.py install \
+    && cd ../../../MiCall-7.6/micall/alignment \
     && python2 setup.py install \
     && cd ../../../MiCall-7.7.0/micall/alignment \
     && python3 setup.py install \
     && apk del .build-deps \
     && rm -r /root/build
+
+WORKDIR /root/build
+
+RUN apk add --no-cache --virtual .build-deps \
+        R-dev \
+        R-doc \
+        g++ \
+    && R -e 'install.packages(c("ggplot2"), repos="https://cran.cnr.berkeley.edu")' \
+    && apk del .build-deps
 
 WORKDIR /
 
