@@ -106,6 +106,8 @@ WORKDIR /root/build
 
 # Tried binary distribution, but decided it was safer to build from source:
 # https://serverfault.com/q/883625/1143
+# Have to put links in /usr/local/bin and not binaries to make multiple
+# versions work side by side.
 RUN apk add --no-cache --virtual .fetch-deps \
         wget \
     && wget -nv https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/$BOWTIE2_VERSION/bowtie2-$BOWTIE2_VERSION-source.zip \
@@ -116,14 +118,42 @@ RUN apk add --no-cache --virtual .fetch-deps \
     && unzip bowtie2-$BOWTIE2_VERSION-source.zip \
     && cd bowtie2-$BOWTIE2_VERSION \
     && make \
-    && mv bowtie2* /usr/local/bin \
-    && (for cmd in /usr/local/bin/bowtie2*; \
-        do ln -s $cmd $cmd-$BOWTIE2_VERSION ; \
+    && mkdir /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && mv bowtie2* /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && cd /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && (for cmd in *; \
+        do  ln -s `pwd`/$cmd /usr/local/bin/$cmd ; \
+            ln -s `pwd`/$cmd /usr/local/bin/$cmd-$BOWTIE2_VERSION ; \
         done \
        ) \
     && apk add --no-cache --virtual .bowtie2-rundeps \
         perl \
         libstdc++ \
+    && apk del .build-deps \
+    && rm -r /root/build
+
+ENV BOWTIE2_VERSION 2.2.1
+
+WORKDIR /root/build
+
+# Install a second version of bowtie2, with version in file names.
+RUN apk add --no-cache --virtual .fetch-deps \
+        wget \
+    && wget -nv https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/$BOWTIE2_VERSION/bowtie2-$BOWTIE2_VERSION-source.zip \
+    && apk add --no-cache --virtual .build-deps \
+        g++ \
+        make \
+    && apk del .fetch-deps \
+    && unzip bowtie2-$BOWTIE2_VERSION-source.zip \
+    && cd bowtie2-$BOWTIE2_VERSION \
+    && make \
+    && mkdir /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && mv bowtie2* /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && cd /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && (for cmd in *; \
+        do  ln -s `pwd`/$cmd /usr/local/bin/$cmd-$BOWTIE2_VERSION ; \
+        done \
+       ) \
     && apk del .build-deps \
     && rm -r /root/build
 

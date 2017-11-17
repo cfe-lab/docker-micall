@@ -12,6 +12,7 @@ printf "\nOther tools:\n"
 samtools --version
 bcftools --version
 bowtie2 --version
+bowtie2-2.2.1 --version
 cutadapt --version
 
 printf "\npip2:\n"
