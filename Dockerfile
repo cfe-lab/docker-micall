@@ -240,6 +240,31 @@ RUN apk add --no-cache --virtual .build-deps \
     && R -e 'install.packages(c("ggplot2"), repos="https://cran.cnr.berkeley.edu")' \
     && apk del .build-deps
 
+ENV BOWTIE2_VERSION 2.2.9
+
+WORKDIR /root/build
+
+# Install a third version of bowtie2, with version in file names.
+RUN apk add --no-cache --virtual .fetch-deps \
+        wget \
+    && wget -nv https://downloads.sourceforge.net/project/bowtie-bio/bowtie2/$BOWTIE2_VERSION/bowtie2-$BOWTIE2_VERSION-source.zip \
+    && apk add --no-cache --virtual .build-deps \
+        g++ \
+        make \
+    && apk del .fetch-deps \
+    && unzip bowtie2-$BOWTIE2_VERSION-source.zip \
+    && cd bowtie2-$BOWTIE2_VERSION \
+    && make \
+    && mkdir /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && mv bowtie2* /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && cd /usr/local/bowtie2-$BOWTIE2_VERSION \
+    && (for cmd in *; \
+        do  ln -s `pwd`/$cmd /usr/local/bin/$cmd-$BOWTIE2_VERSION ; \
+        done \
+       ) \
+    && apk del .build-deps \
+    && rm -r /root/build
+
 WORKDIR /
 
 # Configure pip to avoid a warning.
