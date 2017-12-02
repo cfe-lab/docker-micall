@@ -13,7 +13,8 @@ samtools --version
 bcftools --version
 bowtie2 --version
 bowtie2-2.2.1 --version
-cutadapt --version
+bowtie2-2.2.9 --version
+R --version
 
 printf "\npip2:\n"
 pip2 list
