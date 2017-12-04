@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV GPG_KEY 97FC712E4C024BBEA48A61ED3A5CA953F73C700D
 ENV PYTHON_VERSION 3.4.7
 
+# as of Stretch, "gpg" is no longer included by default
 RUN set -ex \
 	&& buildDeps=" \
 		dpkg-dev \
@@ -32,7 +33,6 @@ RUN set -ex \
 		wget \
 		xz-utils \
 		zlib1g-dev \
-# as of Stretch, "gpg" is no longer included by default
 		$(command -v gpg > /dev/null || echo 'gnupg dirmngr') \
 	" \
 	&& apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
