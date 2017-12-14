@@ -96,6 +96,9 @@ RUN set -ex; \
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		r-base \
 		r-cran-ggplot2 \
+		r-base-dev \
+    && Rscript -e 'install.packages("jsonlite", repos="http://cran.cnr.berkeley.edu")' \
+    && apt-get purge -y --auto-remove r-base-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/build
